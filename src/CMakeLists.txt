@@ -1,0 +1,5 @@
+SET(GITOKU_SOURCE
+gitoku.cpp
+)
+
+ADD_EXECUTABLE(gitoku ${GITOKU_SOURCE})
