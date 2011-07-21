@@ -5,31 +5,46 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- * 
+ *
  */
 
-#include <iostream>
-#include <QApplication>
-#include "CGitokuWindow.h"
-#include "CLegacyGitVCS.h"
-#include "log.h"
+#pragma once
+#include "CVCS.h"
 
-using namespace gitoku;
+struct git_repository;
 
-int main (int argc, char* argv[])
+namespace gitoku
 {
-    QApplication app (argc, argv);
+class CLegacyGitVCS: public CVCS
+{
+    //methods
+    public:
+        CLegacyGitVCS ();
+        virtual ~CLegacyGitVCS();
 
-    gitoku::CGitokuWindow* pMainWindow = new gitoku::CGitokuWindow();
-    pMainWindow->show();
+        virtual bool open (const QString& in_path);
+        
+        virtual QLinkedList< SFileStatus > get_repository_status();
 
-    return app.exec();
+        void print();
+
+    //methods
+    private:
+        static int cvt_git_status (int in_git_status);
+        static int get_file_status (const char* in_p_file_path, unsigned int in_status, void* out_p_status_list);
+        
+    //members
+    private:
+        QString m_path;
+        git_repository* m_p_repository;
+};
+
 }
