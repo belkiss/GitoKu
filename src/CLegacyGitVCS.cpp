@@ -75,17 +75,14 @@ namespace gitoku
 
 
 CLegacyGitVCS::CLegacyGitVCS ()
-    :CVCS(), m_p_repository(nullptr)
+    :CVCS(), m_p_repository(nullptr), 
+	 m_p_repository_index(nullptr)
 {
 }
 
 CLegacyGitVCS::~CLegacyGitVCS()
 {
-    if (m_p_repository)
-    {
-        git_repository_free (m_p_repository);
-        m_p_repository = nullptr;
-    }
+    close();
 }
 
 bool CLegacyGitVCS::open(const QString& in_path)
@@ -95,13 +92,23 @@ bool CLegacyGitVCS::open(const QString& in_path)
     {
         m_path = in_path;
         open_status = git_repository_open(&m_p_repository, m_path.toAscii());
-        if (open_status != GIT_SUCCESS)
+        if (open_status == GIT_SUCCESS)
         {
-            error ("GIT", "error occured when open Git repository => ", m_path.toStdString(), ".\nError [",open_status,"] => ", git_strerror(open_status));
+            //get the repository index
+            open_status = git_repository_index(&m_p_repository_index, m_p_repository);
+
+            if (open_status == GIT_SUCCESS)
+            {
+                debug ("GIT", "Git repository successfully opened");
+            }
+            else
+            {
+                debug ("GIT", "error occured when reading repository index");
+            }
         }
         else
         {
-            debug ("GIT", "Git repository successfully opened");
+            error ("GIT", "error occured when open Git repository => ", m_path.toStdString(), ".\nError [",open_status,"] => ", git_strerror(open_status));
         }
     }
     else
@@ -119,104 +126,113 @@ bool CLegacyGitVCS::open(const QString& in_path)
 }
 
 
+void CLegacyGitVCS::close()
+{
+    if (m_p_repository)
+    {
+        git_repository_free (m_p_repository);
+        m_p_repository = nullptr;
+    }
+
+    if (m_p_repository_index)
+    {
+        git_index_free(m_p_repository_index);
+        m_p_repository_index = nullptr;
+    }
+}
+
+
 int CLegacyGitVCS::get_file_status (const char* in_p_file_path, unsigned int in_git_status, void* out_p_status_list )
 {
-    int status = GIT_SUCCESS;
-
     cond_assert(LOG_COND(out_p_status_list), "GIT");
-    QLinkedList <SFileStatus>* p_status_list = static_cast<QLinkedList<SFileStatus>*>(out_p_status_list);
+    CLegacyGitVCS* p_this = static_cast<CLegacyGitVCS*>(out_p_status_list);
 
     SFileStatus file_status;
 
     file_status.m_file_info= QFileInfo(in_p_file_path);
     file_status.m_path     = QString(in_p_file_path);
-    file_status.m_status   = cvt_git_status(in_git_status);
+    file_status.m_status   = p_this->cvt_git_status(file_status.m_path, in_git_status);
 
-    p_status_list->push_back(file_status);
+    p_this->m_file_status_list.push_back(file_status);
 
-    return status;
+    return GIT_SUCCESS;
 }
 
-QLinkedList< SFileStatus > CLegacyGitVCS::get_repository_status()
+const QLinkedList< SFileStatus >& CLegacyGitVCS::get_repository_status()
 {
-    QLinkedList<SFileStatus> file_status_list;
+    m_file_status_list.clear();
 
-    git_status_foreach(m_p_repository, &get_file_status, static_cast<void*>(&file_status_list));
+    git_status_foreach(m_p_repository, &get_file_status, static_cast<void*>(this));
 
-    return file_status_list;
+    return m_file_status_list;
 }
 
 
-void CLegacyGitVCS::print()
-{
-    cond_assert(LOG_COND(m_p_repository), "GIT");
-    git_index *index;
-
-    git_repository_index(&index, m_p_repository);
-
-    git_index_read(index);
-    unsigned int ecount = git_index_entrycount(index);
 
 
-    debug("GIT", "=======  index =========");
-    
-    for (unsigned int i = 0; i < ecount; ++i)
-    {
-        git_index_entry *e = git_index_get(index, i);
-
-        debug("GIT", "path: ", e->path);
-    }
-
-    debug("GIT", "========== unmerged ==============");
-    
-    ecount = git_index_entrycount_unmerged(index);
-    for (unsigned int i = 0; i < ecount; ++i)
-    {
-        const git_index_entry_unmerged *e = git_index_get_unmerged_byindex(index, i);
-
-        debug("GIT", "path: ", e->path);
-    }
-
-    debug("GIT", "==============================");
-
-
-    git_index_free(index);
-}
-
-
-int CLegacyGitVCS::cvt_git_status(int in_git_status)
+int CLegacyGitVCS::cvt_git_status(const QString& in_file_path, int in_git_status)
 {
     int status = EFileStatus::STATUS_UNKNOWN;
 
-    // untracked file
-    if (in_git_status == GIT_STATUS_WT_NEW)
-    {
-        status = (EFileStatus::STATUS_UNTRACKED | EFileStatus::STATUS_NEW);
-    }
     // tracked file, without any changes
-    else if (in_git_status == GIT_STATUS_CURRENT)
+    if (in_git_status == GIT_STATUS_CURRENT)
     {
         status = EFileStatus::STATUS_TRACKED;
     }
-    // new file staged
-    else if (in_git_status == (GIT_STATUS_WT_MODIFIED | GIT_STATUS_INDEX_NEW))
+    // deleted file
+    else if (in_git_status == GIT_STATUS_WT_DELETED)
     {
-        status = (EFileStatus::STATUS_STAGED | EFileStatus::STATUS_NEW);
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_DELETED | EFileStatus::STATUS_UNSTAGED);
     }
     // modified file, but not staged
     else if (in_git_status == GIT_STATUS_WT_MODIFIED)
     {
-        status = (EFileStatus::STATUS_MODIFIED | EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_UNSTAGED);
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_MODIFIED | EFileStatus::STATUS_UNSTAGED);
+    }
+    // untracked new file
+    else if (in_git_status == GIT_STATUS_WT_NEW)
+    {
+        status = (EFileStatus::STATUS_UNTRACKED | EFileStatus::STATUS_NEW);
     }
     // modified file, staged
     else if (in_git_status == GIT_STATUS_INDEX_MODIFIED)
     {
-        status = (EFileStatus::STATUS_STAGED | EFileStatus::STATUS_MODIFIED | EFileStatus::STATUS_TRACKED);
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_MODIFIED | EFileStatus::STATUS_STAGED);
     }
-    // nzw file, staged
+    // deleted file, staged
+    else if (in_git_status == (GIT_STATUS_INDEX_MODIFIED | GIT_STATUS_WT_DELETED))
+    {
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_DELETED | EFileStatus::STATUS_STAGED | EFileStatus::STATUS_UNSTAGED);
+    }
+    // modified file, staged
+    else if (in_git_status == (GIT_STATUS_INDEX_MODIFIED | GIT_STATUS_WT_MODIFIED))
+    {
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_MODIFIED | EFileStatus::STATUS_STAGED | EFileStatus::STATUS_UNSTAGED);
+    }
+    // deleted file staged
+    else if (in_git_status == GIT_STATUS_INDEX_DELETED)
+    {
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_DELETED | EFileStatus::STATUS_STAGED);
+    }
+    // deleted file staged
+    else if (in_git_status == (GIT_STATUS_INDEX_DELETED | GIT_STATUS_WT_NEW))
+    {
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_DELETED | EFileStatus::STATUS_STAGED );
+    }
+    // new file staged
     else if (in_git_status == GIT_STATUS_INDEX_NEW)
     {
-        status = (EFileStatus::STATUS_STAGED | EFileStatus::STATUS_NEW | EFileStatus::STATUS_UNTRACKED);
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_NEW | EFileStatus::STATUS_STAGED);
+    }
+    // new file staged
+    else if (in_git_status == (GIT_STATUS_INDEX_NEW | GIT_STATUS_WT_DELETED))
+    {
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_NEW | EFileStatus::STATUS_STAGED | EFileStatus::STATUS_UNSTAGED);
+    }
+    // new file staged
+    else if (in_git_status == (GIT_STATUS_INDEX_NEW | GIT_STATUS_WT_MODIFIED))
+    {
+        status = (EFileStatus::STATUS_TRACKED | EFileStatus::STATUS_NEW | EFileStatus::STATUS_STAGED | EFileStatus::STATUS_UNSTAGED);
     }
     else
     {

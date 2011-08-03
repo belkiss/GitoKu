@@ -61,6 +61,13 @@ class CVCS
          * @return True if repository correctly opened, False if not
          **/
         virtual bool open (const QString& in_path) = 0;
+        
+        /**
+         * @brief ...
+         *
+         * @return void
+         **/
+        virtual void close () = 0;
 
         /**
          * @brief return the status of all files in the repository
@@ -68,7 +75,7 @@ class CVCS
          *
          * @return list of all file status
          **/
-        virtual QLinkedList<SFileStatus> get_repository_status () = 0;
+        virtual const QLinkedList<SFileStatus>& get_repository_status () = 0;
         
         virtual ~CVCS() {};
 

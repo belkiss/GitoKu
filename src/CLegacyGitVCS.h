@@ -20,6 +20,7 @@
 #include "CVCS.h"
 
 struct git_repository;
+struct git_index;
 
 namespace gitoku
 {
@@ -31,20 +32,23 @@ class CLegacyGitVCS: public CVCS
         virtual ~CLegacyGitVCS();
 
         virtual bool open (const QString& in_path);
+        virtual void close();
         
-        virtual QLinkedList< SFileStatus > get_repository_status();
+        virtual const QLinkedList< SFileStatus >& get_repository_status();
 
-        void print();
 
     //methods
     private:
-        static int cvt_git_status (int in_git_status);
+        int cvt_git_status (const QString& in_file_path, int in_git_status);
         static int get_file_status (const char* in_p_file_path, unsigned int in_status, void* out_p_status_list);
         
     //members
     private:
-        QString m_path;
+        QString         m_path;
         git_repository* m_p_repository;
+        git_index*      m_p_repository_index;
+
+        QLinkedList<SFileStatus> m_file_status_list;
 };
 
 }
