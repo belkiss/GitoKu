@@ -22,8 +22,12 @@
 #include "log.h"
 #include "CLegacyGitVCS.h"
 
+
+Q_DECLARE_METATYPE(gitoku::CVcsFile)
+
 namespace gitoku
 {
+    
     
 CGitokuWindow::CGitokuWindow()
     :m_p_vcs(nullptr)
@@ -32,18 +36,19 @@ CGitokuWindow::CGitokuWindow()
 
     ui_repository_line_edit->setText(QDir::currentPath());
 
-    m_file_status_model.setColumnCount(2);
+    m_file_status_model.setColumnCount(1);
 
     //filter unstaged files
     m_unstaged_model_filter.set_status_filter(EFileStatus::STATUS_UNSTAGED);
     m_unstaged_model_filter.setSourceModel(&m_file_status_model);
-    ui_unstaged_list_view->setModel(&m_unstaged_model_filter);
+    ui_unstaged_tableview->setModel(&m_unstaged_model_filter);
 
     //filter staged files
     m_staged_model_filter.set_status_filter(EFileStatus::STATUS_STAGED);
     m_staged_model_filter.setSourceModel(&m_file_status_model);
-    ui_staged_list_view->setModel(&m_staged_model_filter);
+    ui_staged_tableview->setModel(&m_staged_model_filter);
 
+    ui_workingtree_tableview->setModel(&m_working_tree_model);
 }
 
 CGitokuWindow::~CGitokuWindow()
@@ -56,12 +61,16 @@ void CGitokuWindow::populate()
     cond_assert(LOG_COND(m_p_vcs), "MAIN");
 
     //query repository files status
-    QLinkedList<SFileStatus> repo_status = m_p_vcs->get_repository_status();
+    QLinkedList<CVcsFile> repo_status = m_p_vcs->get_repository_status();
 
     //clear previously loaded repository
     m_file_status_model.clear();
+    debug ("MAIN", "repository path : ", m_p_vcs->get_repository_path().toStdString());
+    m_working_tree_model.setRootPath(m_p_vcs->get_repository_path());
+    ui_workingtree_tableview->setRootIndex(m_working_tree_model.index(m_p_vcs->get_repository_path()));
 
-    foreach (SFileStatus status, repo_status)
+
+    foreach (CVcsFile status, repo_status)
     {
         QList<QStandardItem*> columns;
 
@@ -69,12 +78,8 @@ void CGitokuWindow::populate()
         QStandardItem *p_item;
         p_item = new QStandardItem();
         p_item->setData(status.m_path, Qt::DisplayRole);
-        p_item->setEditable(false);
-        columns << p_item;
-
-        //column 1 = file status
-        p_item = new QStandardItem();
-        p_item->setData(status.m_status, Qt::DisplayRole);
+        p_item->setData(status.m_status, Qt::UserRole);
+        p_item->setData(QVariant::fromValue(status), Qt::UserRole+1);
         p_item->setEditable(false);
         columns << p_item;
 
@@ -109,6 +114,21 @@ void CGitokuWindow::on_repository_changed()
     }
 }
 
+
+
+void CGitokuWindow::on_display_diff(QModelIndex in_index)
+{
+    cond_assert(LOG_COND(in_index.isValid()) ,"MAIN");
+    if (in_index.isValid())
+    {
+        QString path    = in_index.data(Qt::DisplayRole).toString();
+        const CVcsFile& status = in_index.data(Qt::UserRole+1).value<CVcsFile>();
+
+        debug ("MAIN", status.m_file_info.filePath().toStdString());
+
+        
+    }
+}
 
 
 }

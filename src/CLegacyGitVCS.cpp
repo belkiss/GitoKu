@@ -90,26 +90,37 @@ bool CLegacyGitVCS::open(const QString& in_path)
     int open_status = GIT_ERROR;
     if (!in_path.isEmpty() && !m_p_repository)
     {
-        m_path = in_path;
-        open_status = git_repository_open(&m_p_repository, m_path.toAscii());
-        if (open_status == GIT_SUCCESS)
-        {
-            //get the repository index
-            open_status = git_repository_index(&m_p_repository_index, m_p_repository);
+        char repo_found [512];
+        int discover_status = git_repository_discover(repo_found, sizeof(repo_found), in_path.toAscii(), true, "");
 
+        if (discover_status == GIT_SUCCESS)
+        {
+            m_path = repo_found;
+            open_status = git_repository_open(&m_p_repository, m_path.toAscii());
             if (open_status == GIT_SUCCESS)
             {
-                debug ("GIT", "Git repository successfully opened");
+                //get the repository index
+                open_status = git_repository_index(&m_p_repository_index, m_p_repository);
+
+                if (open_status == GIT_SUCCESS)
+                {
+                    debug ("GIT", "Git repository successfully opened");
+                }
+                else
+                {
+                    debug ("GIT", "error occured when reading repository index");
+                }
             }
             else
             {
-                debug ("GIT", "error occured when reading repository index");
+                error ("GIT", "error occured when open Git repository => ", m_path.toStdString(), ".\nError [",open_status,"] => ", git_strerror(open_status));
             }
         }
         else
         {
-            error ("GIT", "error occured when open Git repository => ", m_path.toStdString(), ".\nError [",open_status,"] => ", git_strerror(open_status));
+            error ("GIT", "error occured when discover Git repository => ", m_path.toStdString(), ".\nError [",discover_status,"] => ", git_strerror(open_status));
         }
+
     }
     else
     {
@@ -147,18 +158,18 @@ int CLegacyGitVCS::get_file_status (const char* in_p_file_path, unsigned int in_
     cond_assert(LOG_COND(out_p_status_list), "GIT");
     CLegacyGitVCS* p_this = static_cast<CLegacyGitVCS*>(out_p_status_list);
 
-    SFileStatus file_status;
+    CVcsFile file_status;
 
     file_status.m_file_info= QFileInfo(in_p_file_path);
     file_status.m_path     = QString(in_p_file_path);
-    file_status.m_status   = p_this->cvt_git_status(file_status.m_path, in_git_status);
+    file_status.m_status   = p_this->cvt_git_status(in_git_status);
 
     p_this->m_file_status_list.push_back(file_status);
 
     return GIT_SUCCESS;
 }
 
-const QLinkedList< SFileStatus >& CLegacyGitVCS::get_repository_status()
+const QLinkedList< CVcsFile >& CLegacyGitVCS::get_repository_status()
 {
     m_file_status_list.clear();
 
@@ -168,9 +179,19 @@ const QLinkedList< SFileStatus >& CLegacyGitVCS::get_repository_status()
 }
 
 
+QString CLegacyGitVCS::get_repository_path()
+{
+    QString path;
+    if (m_p_repository)
+    {
+        path = git_repository_path(m_p_repository, GIT_REPO_PATH_WORKDIR);
+    }
+
+    return path;
+}
 
 
-int CLegacyGitVCS::cvt_git_status(const QString& in_file_path, int in_git_status)
+int CLegacyGitVCS::cvt_git_status(int in_git_status)
 {
     int status = EFileStatus::STATUS_UNKNOWN;
 

@@ -44,11 +44,13 @@ class CGitokuWindow : public QMainWindow, private Ui_GitokuWindow
     //slots    
     private slots:
         void on_repository_changed();
+        void on_display_diff(QModelIndex in_index);
 
     //members
     private:
         CVCS* m_p_vcs;
         QStandardItemModel m_file_status_model;
+        QFileSystemModel   m_working_tree_model;
 
         CFileStatusFilterModel m_unstaged_model_filter;
         CFileStatusFilterModel m_staged_model_filter;

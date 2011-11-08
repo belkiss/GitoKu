@@ -37,13 +37,14 @@ enum EFileStatus
     STATUS_UNSTAGED     = 1 << 7,
 };
     
-struct SFileStatus
+class CVcsFile
 {
-    QFileInfo   m_file_info;
-    QString     m_path;
-
-    int         m_status;
+    public:
+        QFileInfo   m_file_info;
+        QString     m_path;
+        int         m_status;
 };
+
 
 class CVCS
 {
@@ -75,8 +76,10 @@ class CVCS
          *
          * @return list of all file status
          **/
-        virtual const QLinkedList<SFileStatus>& get_repository_status () = 0;
-        
+        virtual const QLinkedList<CVcsFile>& get_repository_status () = 0;
+
+        virtual QString get_repository_path() = 0;
+
         virtual ~CVCS() {};
 
     //members

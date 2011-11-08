@@ -32,9 +32,9 @@ CFileStatusFilterModel::CFileStatusFilterModel(QObject* parent)
 
 bool CFileStatusFilterModel::filterAcceptsRow(int in_source_row, const QModelIndex& in_source_parent) const
 {
-    QModelIndex idx = sourceModel()->index(in_source_row, 1, in_source_parent);
+    QModelIndex idx = sourceModel()->index(in_source_row, 0, in_source_parent);
 
-    return sourceModel()->data(idx).toInt() & m_status;
+    return sourceModel()->data(idx, Qt::UserRole).toInt() & m_status;
 }
 
 

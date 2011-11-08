@@ -34,12 +34,13 @@ class CLegacyGitVCS: public CVCS
         virtual bool open (const QString& in_path);
         virtual void close();
         
-        virtual const QLinkedList< SFileStatus >& get_repository_status();
+        virtual const QLinkedList< CVcsFile >& get_repository_status();
+        virtual QString get_repository_path();
 
 
     //methods
     private:
-        int cvt_git_status (const QString& in_file_path, int in_git_status);
+        int cvt_git_status (int in_git_status);
         static int get_file_status (const char* in_p_file_path, unsigned int in_status, void* out_p_status_list);
         
     //members
@@ -48,7 +49,7 @@ class CLegacyGitVCS: public CVCS
         git_repository* m_p_repository;
         git_index*      m_p_repository_index;
 
-        QLinkedList<SFileStatus> m_file_status_list;
+        QLinkedList<CVcsFile> m_file_status_list;
 };
 
 }

@@ -30,6 +30,13 @@
     <item row="0" column="0">
      <widget class="QLineEdit" name="ui_repository_line_edit"/>
     </item>
+    <item row="1" column="0">
+     <widget class="QTabWidget" name="ui_diff_viewer_tabwidget">
+      <property name="currentIndex">
+       <number>-1</number>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -53,7 +60,7 @@
    <widget class="QWidget" name="dockWidgetContents_3">
     <layout class="QVBoxLayout" name="verticalLayout_5">
      <item>
-      <widget class="QTableView" name="ui_staged_list_view"/>
+      <widget class="QTableView" name="ui_staged_tableview"/>
      </item>
     </layout>
    </widget>
@@ -80,16 +87,30 @@
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
-      <widget class="QTableView" name="ui_unstaged_list_view"/>
+      <widget class="QTableView" name="ui_unstaged_tableview"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="ui_workingtree_dock">
+   <property name="windowTitle">
+    <string>Working Tree</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_6">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QTreeView" name="ui_workingtree_tableview"/>
      </item>
     </layout>
    </widget>
   </widget>
  </widget>
  <tabstops>
-  <tabstop>ui_repository_line_edit</tabstop>
-  <tabstop>ui_staged_list_view</tabstop>
-  <tabstop>ui_unstaged_list_view</tabstop>
+  <tabstop>ui_staged_tableview</tabstop>
+  <tabstop>ui_unstaged_tableview</tabstop>
  </tabstops>
  <resources/>
  <connections>
@@ -100,8 +121,8 @@
    <slot>on_repository_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>440</x>
-     <y>377</y>
+     <x>729</x>
+     <y>68</y>
     </hint>
     <hint type="destinationlabel">
      <x>460</x>
@@ -109,8 +130,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>ui_unstaged_tableview</sender>
+   <signal>clicked(QModelIndex)</signal>
+   <receiver>GitokuWindow</receiver>
+   <slot>on_display_diff(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>243</x>
+     <y>405</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>282</x>
+     <y>431</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>on_repository_changed()</slot>
+  <slot>on_display_diff(QModelIndex)</slot>
  </slots>
 </ui>
