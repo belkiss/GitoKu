@@ -18,9 +18,8 @@
 
 
 #include "CGitokuWindow.h"
-#include "CVCS.h"
 #include "log.h"
-#include "CLegacyGitVCS.h"
+#include "CGitRepo.h"
 
 
 Q_DECLARE_METATYPE(gitoku::CVcsFile)
@@ -30,7 +29,7 @@ namespace gitoku
     
     
 CGitokuWindow::CGitokuWindow()
-    :m_p_vcs(nullptr)
+    :m_p_git(nullptr)
 {
     setupUi(this);
 
@@ -58,16 +57,16 @@ CGitokuWindow::~CGitokuWindow()
 
 void CGitokuWindow::populate()
 {
-    cond_assert(LOG_COND(m_p_vcs), "MAIN");
+    cond_assert(LOG_COND(m_p_git), "MAIN");
 
     //query repository files status
-    QLinkedList<CVcsFile> repo_status = m_p_vcs->get_repository_status();
+    QLinkedList<CVcsFile> repo_status = m_p_git->get_repository_status();
 
     //clear previously loaded repository
     m_file_status_model.clear();
-    debug ("MAIN", "repository path : ", m_p_vcs->get_repository_path().toStdString());
-    m_working_tree_model.setRootPath(m_p_vcs->get_repository_path());
-    ui_workingtree_tableview->setRootIndex(m_working_tree_model.index(m_p_vcs->get_repository_path()));
+    debug ("MAIN", "repository path : ", m_p_git->get_repository_path().toStdString());
+    m_working_tree_model.setRootPath(m_p_git->get_repository_path());
+    ui_workingtree_tableview->setRootIndex(m_working_tree_model.index(m_p_git->get_repository_path()));
 
 
     foreach (CVcsFile status, repo_status)
@@ -92,20 +91,20 @@ void CGitokuWindow::populate()
 void CGitokuWindow::on_repository_changed()
 {
     //try to open the repository specified in GUI
-    CVCS* p_vcs = new CLegacyGitVCS();
+    CGitRepo* p_vcs = new CGitRepo();
     bool repository_opened = p_vcs->open(ui_repository_line_edit->text());
 
     if (repository_opened)
     {
         // if a previous vcs was used, delete it
-        if(m_p_vcs)
+        if(m_p_git)
         {
-            delete m_p_vcs;
-            m_p_vcs = 0;
+            delete m_p_git;
+            m_p_git = 0;
         }
 
         //associate and load new vcs repository
-        m_p_vcs = p_vcs;
+        m_p_git = p_vcs;
         populate();
     }
     else
@@ -125,8 +124,6 @@ void CGitokuWindow::on_display_diff(QModelIndex in_index)
         const CVcsFile& status = in_index.data(Qt::UserRole+1).value<CVcsFile>();
 
         debug ("MAIN", status.m_file_info.filePath().toStdString());
-
-        
     }
 }
 

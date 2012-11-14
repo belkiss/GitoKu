@@ -1,7 +1,6 @@
 SET(GITOKU_SOURCE
     CFileStatusFilterModel.cpp
-    CVCS.cpp
-    CLegacyGitVCS.cpp
+    CGitRepo.cpp
     CGitokuWindow.cpp
     gitoku.cpp
 )

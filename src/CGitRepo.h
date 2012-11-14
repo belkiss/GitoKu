@@ -17,26 +17,51 @@
  */
 
 #pragma once
-#include "CVCS.h"
+#include <QString>
+#include <QFileInfo>
+#include <QLinkedList>
 
 struct git_repository;
 struct git_index;
 
 namespace gitoku
 {
-class CLegacyGitVCS: public CVCS
+
+
+enum EFileStatus
+{
+    STATUS_UNKNOWN      = 0,
+    STATUS_TRACKED      = 1 << 0,
+    STATUS_UNTRACKED    = 1 << 1,
+    STATUS_MODIFIED     = 1 << 2,
+    STATUS_CONFLICTED   = 1 << 3,
+    STATUS_NEW          = 1 << 4,
+    STATUS_DELETED      = 1 << 5,
+    STATUS_STAGED       = 1 << 6,
+    STATUS_UNSTAGED     = 1 << 7,
+};
+    
+class CVcsFile
+{
+    public:
+        QFileInfo   m_file_info;
+        QString     m_path;
+        int         m_status;
+};
+
+    
+class CGitRepo
 {
     //methods
     public:
-        CLegacyGitVCS ();
-        virtual ~CLegacyGitVCS();
+        CGitRepo ();
+        virtual ~CGitRepo();
 
         virtual bool open (const QString& in_path);
         virtual void close();
         
         virtual const QLinkedList< CVcsFile >& get_repository_status();
         virtual QString get_repository_path();
-
 
     //methods
     private:

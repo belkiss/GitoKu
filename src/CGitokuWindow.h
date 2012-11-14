@@ -22,11 +22,10 @@
 #include <qlistwidget.h>
 #include "src/ui_gitoku.h"
 #include "CFileStatusFilterModel.h"
+#include "CGitRepo.h"
 
 namespace gitoku
 {
-
-class CVCS;
 
 class CGitokuWindow : public QMainWindow, private Ui_GitokuWindow
 {
@@ -48,7 +47,7 @@ class CGitokuWindow : public QMainWindow, private Ui_GitokuWindow
 
     //members
     private:
-        CVCS* m_p_vcs;
+        CGitRepo* m_p_git;
         QStandardItemModel m_file_status_model;
         QFileSystemModel   m_working_tree_model;
 

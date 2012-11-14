@@ -17,7 +17,6 @@
  */
 
 #include "CFileStatusFilterModel.h"
-#include "CVCS.h"
 #include "log.h"
 
 namespace gitoku

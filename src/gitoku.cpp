@@ -19,7 +19,7 @@
 #include <iostream>
 #include <QApplication>
 #include "CGitokuWindow.h"
-#include "CLegacyGitVCS.h"
+#include "CGitRepo.h"
 #include "log.h"
 
 using namespace gitoku;

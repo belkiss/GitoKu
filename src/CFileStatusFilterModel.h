@@ -19,7 +19,7 @@
 
 #pragma once
 #include <QSortFilterProxyModel>
-#include "CVCS.h"
+#include "CGitRepo.h"
 
 namespace gitoku
 {
