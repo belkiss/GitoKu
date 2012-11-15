@@ -99,13 +99,15 @@ bool CGitRepo::open(const QString& in_path)
                 //get the repository index
                 open_status = git_repository_index(&m_p_repository_index, m_p_repository);
 
+                update_repo_status();
+                
                 if (open_status == GIT_OK)
                 {
                     debug ("GIT", "Git repository successfully opened");
                 }
                 else
                 {
-                    debug ("GIT", "error occured when reading repository index");
+                    error ("GIT", "error occured when reading repository index");
                 }
             }
             else
@@ -133,7 +135,6 @@ bool CGitRepo::open(const QString& in_path)
     return (open_status == GIT_OK);
 }
 
-
 void CGitRepo::close()
 {
     if (m_p_repository)
@@ -150,10 +151,10 @@ void CGitRepo::close()
 }
 
 
-int CGitRepo::get_file_status (const char* in_p_file_path, unsigned int in_git_status, void* out_p_status_list )
+int CGitRepo::get_file_status (const char* in_p_file_path, unsigned int in_git_status, void* out_p_this)
 {
-    cond_assert(LOG_COND(out_p_status_list), "GIT");
-    CGitRepo* p_this = static_cast<CGitRepo*>(out_p_status_list);
+    cond_assert(LOG_COND(out_p_this), "GIT");
+    CGitRepo* p_this = static_cast<CGitRepo*>(out_p_this);
 
     CVcsFile file_status;
 
@@ -166,13 +167,47 @@ int CGitRepo::get_file_status (const char* in_p_file_path, unsigned int in_git_s
     return GIT_OK;
 }
 
-const QLinkedList< CVcsFile >& CGitRepo::get_repository_status()
+void CGitRepo::update_repo_status ()
 {
+    //update file status list
     m_file_status_list.clear();
-
     git_status_foreach(m_p_repository, &get_file_status, static_cast<void*>(this));
+}
 
-    return m_file_status_list;
+static int printer( void *data, const git_diff_delta *delta, const git_diff_range *range, char usage, const char *line, size_t line_len)
+{
+    std::cout << line << std::endl;
+    return 0;
+}
+
+QString CGitRepo::diff_to_head(const QString& in_file)
+{
+    git_diff_options opts;
+    memset(&opts,0, sizeof(git_diff_options));
+    
+    std::string file = in_file.toStdString();
+    
+    char* p_file = const_cast<char*>(file.c_str());
+    opts.pathspec.strings = & p_file;
+    opts.pathspec.count = 1;
+
+    debug ("GIT", *opts.pathspec.strings);
+    
+    git_diff_list* p_diff_list = 0;
+    
+    git_tree *p_head = nullptr;
+    bool ok = resolve_to_tree("HEAD", &p_head);
+    
+    debug("GIT", ok);
+    int status = git_diff_workdir_to_tree(&p_diff_list, m_p_repository, p_head, &opts);
+    if (status == GIT_OK)
+    {
+        git_diff_print_patch(p_diff_list, 0, printer);
+    }
+    else
+    {
+        error ("GIT", "error occured when diff file to index => ", giterr_last()->message);
+    }
 }
 
 
@@ -187,6 +222,54 @@ QString CGitRepo::get_repository_path()
     return path;
 }
 
+
+bool CGitRepo::resolve_to_tree(const std::string& in_identifier, git_tree **out_p_tree)
+{
+    bool ok = false;
+    git_oid oid;
+    git_object *p_obj = nullptr;
+
+    /* try to resolve as OID */
+    if (git_oid_fromstrn(&oid, in_identifier.c_str(), in_identifier.size()) == GIT_OK)
+    {
+        git_object_lookup_prefix(&p_obj, m_p_repository, &oid, in_identifier.size(), GIT_OBJ_ANY);
+    }
+  
+    /* try to resolve as reference */
+    if (!p_obj) 
+    {
+        git_reference *ref, *resolved;
+        if (git_reference_lookup(&ref, m_p_repository, in_identifier.c_str()) == GIT_OK) 
+        {
+            git_reference_resolve(&resolved, ref);
+            git_reference_free(ref);
+            if (resolved) 
+            {
+                git_object_lookup(&p_obj, m_p_repository, git_reference_oid(resolved), GIT_OBJ_ANY);
+                git_reference_free(resolved);
+            }
+        }
+    }
+
+    if (p_obj != nullptr)
+    {
+        switch (git_object_type(p_obj)) 
+        {
+            case GIT_OBJ_TREE:
+                *out_p_tree = (git_tree *)p_obj;
+                ok = true;
+                break;
+            case GIT_OBJ_COMMIT:
+                ok = GIT_OK == git_commit_tree(out_p_tree, (git_commit *)p_obj);
+                git_object_free(p_obj);
+                break;
+            default:
+                ok = false;
+        }
+    }
+
+    return ok;
+}
 
 int CGitRepo::cvt_git_status(int in_git_status)
 {

@@ -23,6 +23,7 @@
 
 struct git_repository;
 struct git_index;
+struct git_tree;
 
 namespace gitoku
 {
@@ -55,19 +56,25 @@ class CGitRepo
     //methods
     public:
         CGitRepo ();
-        virtual ~CGitRepo();
+        ~CGitRepo();
 
-        virtual bool open (const QString& in_path);
-        virtual void close();
+        bool open (const QString& in_path);
+        void close();
         
-        virtual const QLinkedList< CVcsFile >& get_repository_status();
-        virtual QString get_repository_path();
+        const QLinkedList< CVcsFile >& get_repository_status() {return m_file_status_list;}
+        QString get_repository_path();
+
+        QString diff_to_head (const QString& in_file);
+        
 
     //methods
     private:
+        void update_repo_status();
+        
         int cvt_git_status (int in_git_status);
         static int get_file_status (const char* in_p_file_path, unsigned int in_status, void* out_p_status_list);
         
+        bool resolve_to_tree(const std::string& in_identifier, git_tree **out_p_tree);
     //members
     private:
         QString         m_path;

@@ -120,10 +120,11 @@ void CGitokuWindow::on_display_diff(QModelIndex in_index)
     cond_assert(LOG_COND(in_index.isValid()) ,"MAIN");
     if (in_index.isValid())
     {
-        QString path    = in_index.data(Qt::DisplayRole).toString();
-        const CVcsFile& status = in_index.data(Qt::UserRole+1).value<CVcsFile>();
+        CVcsFile status  = in_index.data(Qt::UserRole+1).value<CVcsFile>();
 
-        debug ("MAIN", status.m_file_info.filePath().toStdString());
+        debug ("MAIN", status.m_path.toStdString());
+
+        m_p_git->diff_to_head(status.m_path);
     }
 }
 
